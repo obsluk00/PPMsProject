@@ -10,10 +10,14 @@ int main() {
     // Set CryptoContext
     std::cout << "Setting Context..." << std::endl;
     int amountOperations = 100;
+    int multiplicativeDepth = 10;
+    int statisticalSecurity = 72;
+    std::string pathPrefix = "Results/BGVResults/";
+    std::string fileSuffix = "Depth" + std::to_string(multiplicativeDepth) + "Security" + std::to_string(statisticalSecurity) + ".csv";
     CCParams<CryptoContextBGVRNS> parameters;
     parameters.SetPlaintextModulus(65537);
-    parameters.SetStatisticalSecurity(72);
-    parameters.SetMultiplicativeDepth(10);
+    parameters.SetStatisticalSecurity(statisticalSecurity);
+    parameters.SetMultiplicativeDepth(multiplicativeDepth);
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
     cryptoContext->Enable(PKE);
@@ -27,7 +31,7 @@ int main() {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
     // Initialize Public Key Containers
     KeyPair<DCRTPoly> keyPair;
-    myfile.open("Results/BGVResults/KeyGenerationDepth10.csv");
+    myfile.open(pathPrefix + "KeyGeneration" + fileSuffix);
     myfile << "Microseconds\n";
     // Generate a public/private key pair
     for (int i = 0; i < amountOperations; i++) {
@@ -36,7 +40,6 @@ int main() {
         cryptoContext->EvalMultKeyGen(keyPair.secretKey);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        std::cout << "Key generated in " << duration.count() << " microseconds" << std::endl;
         myfile << duration.count() << "\n";
     }
     myfile.close();
@@ -50,9 +53,14 @@ int main() {
     Plaintext plaintext1 = cryptoContext->MakePackedPlaintext(vectorOfSize1);
     Plaintext plaintext5 = cryptoContext->MakePackedPlaintext(vectorOfSize5);
     Plaintext plaintext10 = cryptoContext->MakePackedPlaintext(vectorOfSize10);
+
+    auto ciphertext1Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
+    auto ciphertext2Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext5);
+    auto ciphertext3Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext10);
+
     // The encoded vectors are encrypted
     std::cout << "Encrypting and decrypting numbers..." << std::endl;
-    myfile.open("Results/BGVResults/EncryptionDecryption.csv");
+    myfile.open(pathPrefix + "EncryptionDecryption" + fileSuffix);
     myfile << "Encrypt Size 1, Encrypt Size 5, Encrypt Size 10, Decrypt Size 1, Decrypt Size 5, Decrypt Size 10\n";
     for (int i = 0; i < amountOperations; i++) {
         start = std::chrono::high_resolution_clock::now();
@@ -90,7 +98,7 @@ int main() {
     myfile.close();
     // Evaluation
     // additions, adding self each time
-    myfile.open("Results/BGVResults/Addition.csv");
+    myfile.open(pathPrefix + "Addition" + fileSuffix);
     myfile << "Size 1, Size 5, Size 10\n";
     std::cout << "Adding homomorphically..." << std::endl;
     auto ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
@@ -98,37 +106,70 @@ int main() {
     auto ciphertext3 = cryptoContext->Encrypt(keyPair.publicKey, plaintext10);
     for (int i = 0; i < amountOperations; i++) {
         start = std::chrono::high_resolution_clock::now();
-        ciphertext1 = cryptoContext->EvalAdd(ciphertext1, ciphertext1);
+        ciphertext1 = cryptoContext->EvalAdd(ciphertext1, ciphertext1Const);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
         start = std::chrono::high_resolution_clock::now();
-        ciphertext2 = cryptoContext->EvalAdd(ciphertext2, ciphertext2);
+        ciphertext2 = cryptoContext->EvalAdd(ciphertext2, ciphertext2Const);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
         start = std::chrono::high_resolution_clock::now();
-        ciphertext3 = cryptoContext->EvalAdd(ciphertext3, ciphertext3);
+        ciphertext3 = cryptoContext->EvalAdd(ciphertext3, ciphertext3Const);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
         myfile << duration.count() << "\n";
     }
     myfile.close();
+
+    Plaintext plaintextDecryptAdd1;
+    cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecryptAdd1);
+    std::cout << "result of add)" << plaintextDecryptAdd1 << std::endl;
+    Plaintext plaintextDecryptAdd5;
+    cryptoContext->Decrypt(keyPair.secretKey, ciphertext2, &plaintextDecryptAdd5);
+    std::cout << "result of add" << plaintextDecryptAdd5 << std::endl;
+    Plaintext plaintextDecryptAdd10;
+    cryptoContext->Decrypt(keyPair.secretKey, ciphertext3, &plaintextDecryptAdd10);
+    std::cout << "result of add" << plaintextDecryptAdd10 << std::endl;
+
     // multiplications, multiplying by 2
     std::vector<int64_t> factorVec = {2};
     Plaintext factorPlain = cryptoContext->MakePackedPlaintext(factorVec);
     auto ciphertextFactor = cryptoContext->Encrypt(keyPair.publicKey, factorPlain);
-
+    ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     std::cout << "Multiplying, Dividing, Relinearizing numbers..." << std::endl;
-    myfile.open("Results/BGVesults/ScalarMultDivRelin.csv");
-    myfile << "Multiplication,Division,Relinearization\n";
-    for (int i = 0; i < amountOperations; i++) {
+    myfile.open(pathPrefix + "ScalarMultDivRelin" + fileSuffix);
+    myfile << "Multiplication times two,Division by two,Relinearization\n";
+    int innerCount = floor(multiplicativeDepth);
+    int outerCount = floor(amountOperations / innerCount);
+    for (int i = 0; i < outerCount; i++) {
+        for (int j = 0; j < innerCount; j++) {
+            ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
+            start = std::chrono::high_resolution_clock::now();
+            ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, ciphertextFactor);
+            stop = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+            myfile << duration.count() << ",";
+            start = std::chrono::high_resolution_clock::now();
+            //ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, cryptoContext->EvalDivide(ciphertextFactor, 0, 1, 129));
+            stop = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+            myfile << ",";
+            if (j != innerCount)
+                myfile << "-\n";
+        }
         start = std::chrono::high_resolution_clock::now();
-        ciphertext1 = cryptoContext->EvalMult(ciphertext1, ciphertextFactor);
+        ciphertext1 = cryptoContext->Relinearize(ciphertext1);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        std::cout << "Took product in " << duration.count() << " microseconds" << std::endl;
-
+        myfile << duration.count() << "\n";
     }
     myfile.close();
+
+    Plaintext plaintextDecryptMult;
+    cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecryptMult);
+    std::cout << "result of mult (should be 2)" << plaintextDecryptMult << std::endl;
 
     return 0;
 }
