@@ -156,7 +156,7 @@ int main() {
             stop = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
             myfile << ",";
-            if (j != innerCount)
+            if (j != innerCount - 1)
                 myfile << "-\n";
         }
         start = std::chrono::high_resolution_clock::now();
