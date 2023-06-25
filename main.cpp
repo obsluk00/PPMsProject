@@ -48,8 +48,8 @@ int main() {
     }
     myfile.close();
 
-    auto keys = cc->KeyGen();
-    cc->EvalMultKeyGen(keys.secretKey);
+    keyPair = cc->KeyGen();
+    cc->EvalMultKeyGen(keyPair.secretKey);
 
     // Inputs
     std::vector<double> x1 = {0.25};
@@ -99,9 +99,9 @@ int main() {
     }
     myfile.close();
 
-    auto c1 = cc->Encrypt(keys.publicKey, ptxt1);
-    auto c2 = cc->Encrypt(keys.publicKey, ptxt4);
-    auto c3 = cc->Encrypt(keys.publicKey, ptxt8);
+    auto c1 = cc->Encrypt(keyPair.publicKey, ptxt1);
+    auto c2 = cc->Encrypt(keyPair.publicKey, ptxt4);
+    auto c3 = cc->Encrypt(keyPair.publicKey, ptxt8);
 
 
     auto ciphertext1Const = cc->Encrypt(keyPair.publicKey, ptxt1);
@@ -182,7 +182,7 @@ int main() {
     std::cout.precision(8);
 
     // Decrypt the result of multiplication
-    cc->Decrypt(keys.secretKey, c1, &result);
+    cc->Decrypt(keyPair.secretKey, c1, &result);
     result->SetLength(batchSize);
     std::cout << "mult results (should be 0.25): " << result;
     std::cout << "Estimated precision in bits: " << result->GetLogPrecision() << std::endl;
