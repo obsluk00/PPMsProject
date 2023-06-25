@@ -6,170 +6,116 @@
 using namespace lbcrypto;
 
 int main() {
+    int amountOperations = 10;
+    uint32_t multDepth = 1;
+    uint32_t security = 72;
+    uint32_t scaleModSize = 50;
+    uint32_t batchSize = 8;
+
+    CCParams<CryptoContextCKKSRNS> parameters;
+    parameters.SetMultiplicativeDepth(multDepth);
+    parameters.SetBatchSize(72);
+    parameters.SetScalingModSize(scaleModSize);
+    parameters.SetBatchSize(batchSize);
+
+    CryptoContext<DCRTPoly> cc = GenCryptoContext(parameters);
+
     std::ofstream myfile;
-    // Set CryptoContext
-    std::cout << "Setting Context..." << std::endl;
-    int amountOperations = 100;
-    int multiplicativeDepth = 10;
-    int statisticalSecurity = 72;
-    std::string pathPrefix = "Results/BGVResults/";
-    std::string fileSuffix = "Depth" + std::to_string(multiplicativeDepth) + "Security" + std::to_string(statisticalSecurity) + ".csv";
-    CCParams<CryptoContextBGVRNS> parameters;
-    parameters.SetPlaintextModulus(65537);
-    parameters.SetStatisticalSecurity(statisticalSecurity);
-    parameters.SetMultiplicativeDepth(multiplicativeDepth);
+    std::string pathPrefix = "Results/CKKSResults/";
+    std::string fileSuffix = "Depth" + std::to_string(multDepth) + "Security" + std::to_string(security) +
+                             "RingDimenstion" + std::to_string(cc->GetRingDimension()) + "Batchsize" + std::to_string(batchSize) + ".csv";
 
-    CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
-    cryptoContext->Enable(PKE);
-    cryptoContext->Enable(KEYSWITCH);
-    cryptoContext->Enable(LEVELEDSHE);
+    cc->Enable(PKE);
+    cc->Enable(KEYSWITCH);
+    cc->Enable(LEVELEDSHE);
+    std::cout << "CKKS scheme is using ring dimension " << cc->GetRingDimension() << std::endl << std::endl;
 
-    // Key Generation
+
     std::cout << "Generating keys..." << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    // Initialize Public Key Containers
     KeyPair<DCRTPoly> keyPair;
     myfile.open(pathPrefix + "KeyGeneration" + fileSuffix);
     myfile << "Microseconds\n";
-    // Generate a public/private key pair
     for (int i = 0; i < amountOperations; i++) {
         start = std::chrono::high_resolution_clock::now();
-        keyPair = cryptoContext->KeyGen();
-        cryptoContext->EvalMultKeyGen(keyPair.secretKey);
+        auto keys = cc->KeyGen();
+        cc->EvalMultKeyGen(keys.secretKey);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
         myfile << duration.count() << "\n";
     }
     myfile.close();
+    auto keys = cc->KeyGen();
+    cc->EvalMultKeyGen(keys.secretKey);
 
-    // Generate additional keys for other operations relinearization key
+    // Step 3: Encoding and encryption of inputs
 
-    // Encryption
-    std::vector<int64_t> vectorOfSize1 = {1};
-    std::vector<int64_t> vectorOfSize5 = {1, 2, 3, 4, 5};
-    std::vector<int64_t> vectorOfSize10 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    Plaintext plaintext1 = cryptoContext->MakePackedPlaintext(vectorOfSize1);
-    Plaintext plaintext5 = cryptoContext->MakePackedPlaintext(vectorOfSize5);
-    Plaintext plaintext10 = cryptoContext->MakePackedPlaintext(vectorOfSize10);
+    // Inputs
+    std::vector<double> x1 = {0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0, 5.0};
+    std::vector<double> x2 = {5.0, 4.0, 3.0, 2.0, 1.0, 0.75, 0.5, 0.25};
 
-    auto ciphertext1Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-    auto ciphertext2Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext5);
-    auto ciphertext3Const = cryptoContext->Encrypt(keyPair.publicKey, plaintext10);
+    // Encoding as plaintexts
+    Plaintext ptxt1 = cc->MakeCKKSPackedPlaintext(x1);
+    Plaintext ptxt2 = cc->MakeCKKSPackedPlaintext(x2);
 
-    // The encoded vectors are encrypted
-    std::cout << "Encrypting and decrypting numbers..." << std::endl;
-    myfile.open(pathPrefix + "EncryptionDecryption" + fileSuffix);
-    myfile << "Encrypt Size 1, Encrypt Size 5, Encrypt Size 10, Decrypt Size 1, Decrypt Size 5, Decrypt Size 10\n";
-    for (int i = 0; i < amountOperations; i++) {
-        start = std::chrono::high_resolution_clock::now();
-        auto ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        auto ciphertext2 = cryptoContext->Encrypt(keyPair.publicKey, plaintext5);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        auto ciphertext3 = cryptoContext->Encrypt(keyPair.publicKey, plaintext10);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        Plaintext plaintextDecrypt;
-        start = std::chrono::high_resolution_clock::now();
-        cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecrypt);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        cryptoContext->Decrypt(keyPair.secretKey, ciphertext2, &plaintextDecrypt);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        cryptoContext->Decrypt(keyPair.secretKey, ciphertext3, &plaintextDecrypt);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << "\n";
-    }
-    myfile.close();
-    // Evaluation
-    // additions, adding self each time
-    myfile.open(pathPrefix + "Addition" + fileSuffix);
-    myfile << "Size 1, Size 5, Size 10\n";
-    std::cout << "Adding homomorphically..." << std::endl;
-    auto ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-    auto ciphertext2 = cryptoContext->Encrypt(keyPair.publicKey, plaintext5);
-    auto ciphertext3 = cryptoContext->Encrypt(keyPair.publicKey, plaintext10);
-    for (int i = 0; i < amountOperations; i++) {
-        start = std::chrono::high_resolution_clock::now();
-        ciphertext1 = cryptoContext->EvalAdd(ciphertext1, ciphertext1Const);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        ciphertext2 = cryptoContext->EvalAdd(ciphertext2, ciphertext2Const);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << ",";
-        start = std::chrono::high_resolution_clock::now();
-        ciphertext3 = cryptoContext->EvalAdd(ciphertext3, ciphertext3Const);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << "\n";
-    }
-    myfile.close();
+    std::cout << "Input x1: " << ptxt1 << std::endl;
+    std::cout << "Input x2: " << ptxt2 << std::endl;
 
-    Plaintext plaintextDecryptAdd1;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecryptAdd1);
-    std::cout << "result of add)" << plaintextDecryptAdd1 << std::endl;
-    Plaintext plaintextDecryptAdd5;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertext2, &plaintextDecryptAdd5);
-    std::cout << "result of add" << plaintextDecryptAdd5 << std::endl;
-    Plaintext plaintextDecryptAdd10;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertext3, &plaintextDecryptAdd10);
-    std::cout << "result of add" << plaintextDecryptAdd10 << std::endl;
+    // Encrypt the encoded vectors
+    auto c1 = cc->Encrypt(keys.publicKey, ptxt1);
+    auto c2 = cc->Encrypt(keys.publicKey, ptxt2);
 
-    // multiplications, multiplying by 2
-    std::vector<int64_t> factorVec = {2};
-    Plaintext factorPlain = cryptoContext->MakePackedPlaintext(factorVec);
-    auto ciphertextFactor = cryptoContext->Encrypt(keyPair.publicKey, factorPlain);
-    ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-    std::cout << "Multiplying, Dividing, Relinearizing numbers..." << std::endl;
-    myfile.open(pathPrefix + "ScalarMultDivRelin" + fileSuffix);
-    myfile << "Multiplication times two,Division by two,Relinearization\n";
-    int innerCount = floor(multiplicativeDepth);
-    int outerCount = floor(amountOperations / innerCount);
-    for (int i = 0; i < outerCount; i++) {
-        for (int j = 0; j < innerCount; j++) {
-            ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-            start = std::chrono::high_resolution_clock::now();
-            ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, ciphertextFactor);
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << duration.count() << ",";
-            start = std::chrono::high_resolution_clock::now();
-            //ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, cryptoContext->EvalDivide(ciphertextFactor, 0, 1, 129));
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << ",";
-            if (j != innerCount - 1)
-                myfile << "-\n";
-        }
-        start = std::chrono::high_resolution_clock::now();
-        ciphertext1 = cryptoContext->Relinearize(ciphertext1);
-        stop = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-        myfile << duration.count() << "\n";
-    }
-    myfile.close();
+    // Step 4: Evaluation
 
-    Plaintext plaintextDecryptMult;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecryptMult);
-    std::cout << "result of mult (should be 2)" << plaintextDecryptMult << std::endl;
+    // Homomorphic addition
+    auto cAdd = cc->EvalAdd(c1, c2);
+
+    // Homomorphic subtraction
+    auto cSub = cc->EvalSub(c1, c2);
+
+    // Homomorphic scalar multiplication
+    auto cScalar = cc->EvalMult(c1, 4.0);
+
+    // Homomorphic multiplication
+    auto cMul = cc->EvalMult(c1, c2);
+
+    // Step 5: Decryption and output
+    Plaintext result;
+    // We set the cout precision to 8 decimal digits for a nicer output.
+    // If you want to see the error/noise introduced by CKKS, bump it up
+    // to 15 and it should become visible.
+    std::cout.precision(8);
+
+    std::cout << std::endl << "Results of homomorphic computations: " << std::endl;
+
+    cc->Decrypt(keys.secretKey, c1, &result);
+    result->SetLength(batchSize);
+    std::cout << "x1 = " << result;
+    std::cout << "Estimated precision in bits: " << result->GetLogPrecision() << std::endl;
+
+    // Decrypt the result of addition
+    cc->Decrypt(keys.secretKey, cAdd, &result);
+    result->SetLength(batchSize);
+    std::cout << "x1 + x2 = " << result;
+    std::cout << "Estimated precision in bits: " << result->GetLogPrecision() << std::endl;
+
+    // Decrypt the result of subtraction
+    cc->Decrypt(keys.secretKey, cSub, &result);
+    result->SetLength(batchSize);
+    std::cout << "x1 - x2 = " << result << std::endl;
+
+    // Decrypt the result of scalar multiplication
+    cc->Decrypt(keys.secretKey, cScalar, &result);
+    result->SetLength(batchSize);
+    std::cout << "4 * x1 = " << result << std::endl;
+
+    // Decrypt the result of multiplication
+    cc->Decrypt(keys.secretKey, cMul, &result);
+    result->SetLength(batchSize);
+    std::cout << "x1 * x2 = " << result << std::endl;
+
 
     return 0;
 }
