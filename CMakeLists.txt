@@ -2,10 +2,10 @@ cmake_minimum_required (VERSION 3.5.1)
 
 ### To use gcc/g++ on a Macintosh, you must set the Compilers
 ### here, not inside the project
-##if(APPLE)
-##       set(CMAKE_C_COMPILER "/usr/local/bin/gcc-7")
-##       set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-7")
-##endif()
+if(APPLE)
+    set(CMAKE_C_COMPILER "/usr/bin/clang")
+    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+endif()
 ### TODO: for now, we use CLang for Mac
 ###
 ### In order to create OpenFHE's static libraries you should enable
@@ -29,6 +29,7 @@ include_directories( ${OpenFHE_INCLUDE} )
 include_directories( ${OpenFHE_INCLUDE}/third-party/include )
 include_directories( ${OpenFHE_INCLUDE}/core )
 include_directories( ${OpenFHE_INCLUDE}/pke )
+include_directories( ${OpenFHE_INCLUDE}/binfhe)
 ### add directories for other OpenFHE modules as needed for your project
 
 link_directories( ${OpenFHE_LIBDIR} )
