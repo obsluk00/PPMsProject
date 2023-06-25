@@ -139,28 +139,22 @@ int main() {
     auto ciphertextFactor = cryptoContext->Encrypt(keyPair.publicKey, factorPlain);
     ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     std::cout << "Multiplying, Dividing, Relinearizing numbers..." << std::endl;
-    myfile.open(pathPrefix + "ScalarMultDivRelin" + fileSuffix);
+    myfile.open(pathPrefix + "ScalarMultRelin" + fileSuffix);
     myfile << "Multiplication times two,Division by two,Relinearization\n";
-    int innerCount = floor(multiplicativeDepth);
-    int outerCount = floor(amountOperations / innerCount);
-    for (int i = 0; i < outerCount; i++) {
-        for (int j = 0; j < innerCount; j++) {
-            ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
-            start = std::chrono::high_resolution_clock::now();
-            ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, ciphertextFactor);
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << duration.count() << ",";
-            start = std::chrono::high_resolution_clock::now();
-            //ciphertext1 = cryptoContext->EvalMultNoRelin(ciphertext1, cryptoContext->EvalDivide(ciphertextFactor, 0, 1, 129));
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << ",";
-            if (j != innerCount - 1)
-                myfile << "-\n";
-        }
+    for (int i = 0; i < amountOperations; i++) {
+        ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
         start = std::chrono::high_resolution_clock::now();
-        ciphertext1 = cryptoContext->Relinearize(ciphertext1);
+        ciphertext1 = cryptoContext->EvalMult(ciphertextFactor, ciphertextFactor);
+        stop = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
+        start = std::chrono::high_resolution_clock::now();
+        auto ciphertextYeet = cryptoContext->EvalMultNoRelin(ciphertextFactor, ciphertextFactor);
+        stop = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
+        start = std::chrono::high_resolution_clock::now();
+        ciphertext1 = cryptoContext->Relinearize(ciphertextYeet);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
         myfile << duration.count() << "\n";
@@ -169,7 +163,7 @@ int main() {
 
     Plaintext plaintextDecryptMult;
     cryptoContext->Decrypt(keyPair.secretKey, ciphertext1, &plaintextDecryptMult);
-    std::cout << "result of mult (should be 2)" << plaintextDecryptMult << std::endl;
+    std::cout << "result of mult (should be 4)" << plaintextDecryptMult << std::endl;
 
     return 0;
 }
