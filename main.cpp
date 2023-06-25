@@ -26,7 +26,6 @@ std::pair<std::shared_ptr<LWECiphertextImpl>, std::shared_ptr<LWECiphertextImpl>
 int main() {
     std::ofstream myfile;
     std::string pathPrefix = "Results/CGGIResults/";
-    std::string fileSuffix = ".csv";
     // Sample Program: Step 1: Set CryptoContext
 
     auto cc = BinFHEContext();
