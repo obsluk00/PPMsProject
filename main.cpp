@@ -7,7 +7,7 @@ using namespace lbcrypto;
 
 int main() {
     int amountOperations = 10;
-    uint32_t multDepth = 1;
+    uint32_t multDepth = 3;
     uint32_t security = 72;
     uint32_t scaleModSize = 50;
     uint32_t batchSize = 8;
@@ -23,11 +23,12 @@ int main() {
     std::ofstream myfile;
     std::string pathPrefix = "Results/CKKSResults/";
     std::string fileSuffix = "Depth" + std::to_string(multDepth) + "Security" + std::to_string(security) +
-                             "RingDimenstion" + std::to_string(cc->GetRingDimension()) + "Batchsize" + std::to_string(batchSize) + ".csv";
+                             "RingDimenstion" + std::to_string(cc->GetRingDimension()) + ".csv";
 
     cc->Enable(PKE);
     cc->Enable(KEYSWITCH);
     cc->Enable(LEVELEDSHE);
+    cc->Enable(ADVANCEDSHE);
     std::cout << "CKKS scheme is using ring dimension " << cc->GetRingDimension() << std::endl << std::endl;
 
 
@@ -132,42 +133,37 @@ int main() {
 
     Plaintext plaintextDecryptAdd1;
     cc->Decrypt(keyPair.secretKey, c1, &plaintextDecryptAdd1);
-    plaintextDecryptAdd1->SetLength(batchSize);
+    plaintextDecryptAdd1->SetLength(1);
     std::cout << "result of add)" << plaintextDecryptAdd1 << std::endl;
     Plaintext plaintextDecryptAdd5;
     cc->Decrypt(keyPair.secretKey, c2, &plaintextDecryptAdd5);
-    plaintextDecryptAdd5->SetLength(batchSize);
+    plaintextDecryptAdd5->SetLength(4);
     std::cout << "result of add" << plaintextDecryptAdd5 << std::endl;
     Plaintext plaintextDecryptAdd10;
     cc->Decrypt(keyPair.secretKey, c3, &plaintextDecryptAdd10);
-    plaintextDecryptAdd10->SetLength(batchSize);
+    plaintextDecryptAdd10->SetLength(8);
     std::cout << "result of add" << plaintextDecryptAdd10 << std::endl;
 
-    std::cout << "Multiplying, Dividing, Relinearizing numbers..." << std::endl;
-    myfile.open(pathPrefix + "ScalarMultDivRelin" + fileSuffix);
-    myfile << "Multiplication times two,Division by two,Relinearization\n";
+    std::cout << "other stuff..." << std::endl;
+    myfile.open(pathPrefix + "MultSinEtc" + fileSuffix);
+    myfile << "Mult,MultNoRelin,Relin\n";
     std::vector<double> factorVec = {2.0};
+
     Plaintext factorPlain = cc->MakeCKKSPackedPlaintext(factorVec);
     auto ciphertextFactor = cc->Encrypt(keyPair.publicKey, factorPlain);
-    int innerCount = floor(multDepth);
-    int outerCount = floor(amountOperations / innerCount);
-    for (int i = 0; i < outerCount; i++) {
-        for (int j = 0; j < innerCount; j++) {
-            start = std::chrono::high_resolution_clock::now();
-            c1 = cc->EvalMultNoRelin(c1, ciphertextFactor);
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << duration.count() << ",";
-            start = std::chrono::high_resolution_clock::now();
-            c1 = cc->EvalMultNoRelin(c1, cc->EvalDivide(ciphertextFactor, 0, 1, 129));
-            stop = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-            myfile << ",";
-            if (j != innerCount - 1)
-                myfile << "-\n";
-        }
+    for (int i = 0; i < amountOperations; i++) {
         start = std::chrono::high_resolution_clock::now();
-        c1 = cc->Relinearize(c1);
+        c1 = cc->EvalMult(ciphertextFactor, ciphertextFactor);
+        stop = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
+        start = std::chrono::high_resolution_clock::now();
+        auto cYeet = cc->EvalMultNoRelin(ciphertextFactor, ciphertextFactor);
+        stop = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+        myfile << duration.count() << ",";
+        start = std::chrono::high_resolution_clock::now();
+        c1 = cc->Relinearize(cYeet);
         stop = std::chrono::high_resolution_clock::now();
         duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
         myfile << duration.count() << "\n";
@@ -183,7 +179,7 @@ int main() {
 
     // Decrypt the result of multiplication
     cc->Decrypt(keyPair.secretKey, c1, &result);
-    result->SetLength(batchSize);
+    result->SetLength(1);
     std::cout << "mult results (should be 0.25): " << result;
     std::cout << "Estimated precision in bits: " << result->GetLogPrecision() << std::endl;
 
