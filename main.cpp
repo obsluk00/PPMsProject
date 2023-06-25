@@ -14,7 +14,7 @@ int main() {
 
     CCParams<CryptoContextCKKSRNS> parameters;
     parameters.SetMultiplicativeDepth(multDepth);
-    parameters.SetBatchSize(72);
+    parameters.SetStatisticalSecurity(security);
     parameters.SetScalingModSize(scaleModSize);
     parameters.SetBatchSize(batchSize);
 
@@ -145,7 +145,7 @@ int main() {
     std::cout << "result of add" << plaintextDecryptAdd10 << std::endl;
 
     std::cout << "other stuff..." << std::endl;
-    myfile.open(pathPrefix + "MultSinEtc" + fileSuffix);
+    myfile.open(pathPrefix + "Multstuff" + fileSuffix);
     myfile << "Mult,MultNoRelin,Relin\n";
     std::vector<double> factorVec = {2.0};
 
