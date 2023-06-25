@@ -140,7 +140,7 @@ int main() {
     ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     std::cout << "Multiplying, Dividing, Relinearizing numbers..." << std::endl;
     myfile.open(pathPrefix + "ScalarMultRelin" + fileSuffix);
-    myfile << "Multiplication times two,Division by two,Relinearization\n";
+    myfile << "Multiplication,MultNoRelin,Relinearization\n";
     for (int i = 0; i < amountOperations; i++) {
         ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
         start = std::chrono::high_resolution_clock::now();
