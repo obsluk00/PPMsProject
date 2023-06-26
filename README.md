@@ -9,4 +9,5 @@ How to use this codebase
 - To test CKKS please run the main file in the float-arithmetic-branch.
 - To test DM and/or CGGI, please run the main file in the logic-circus-branch.ch
 - Please make sure to create a Results folder within the build dir, and to create a "{xxx}Results" folder within it (with xxx being the FHE scheme to be benchmarked).
+- Within the main file of each branch, you can select the scheme you want to test as well as set other properties through parameters in the code.
 
